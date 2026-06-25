@@ -77,7 +77,7 @@ git clone https://github.com/karpathy/nanochat.git
 ### Inspect an .axim file
 
 ```bash
-python scripts/inspect.py model.axim
+python scripts/inspect_axim.py model.axim
 ```
 
 Output:
@@ -172,7 +172,7 @@ Axiom-Inference-Engine/
 ├── scripts/
 │   ├── export_to_axim.py    # export nanoChat models to .axim
 │   ├── api_server.py        # OpenAI-compatible API server
-│   ├── inspect.py           # quick .axim inspector
+│   ├── inspect_axim.py      # quick .axim inspector
 │   └── example_load.py      # example inference script
 ├── webui/
 │   └── index.html           # simple chat web interface

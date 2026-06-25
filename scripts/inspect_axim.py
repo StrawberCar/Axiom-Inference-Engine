@@ -2,7 +2,7 @@
 Inspect an .axim file.
 
 Usage:
-    python inspect.py model.axim
+    python inspect_axim.py model.axim
 """
 
 import sys
@@ -14,6 +14,6 @@ from axim.core import print_axim_info
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("usage: python inspect.py <file.axim>")
+        print("usage: python inspect_axim.py <file.axim>")
         sys.exit(1)
     print_axim_info(sys.argv[1])
