@@ -1,8 +1,8 @@
 # Axiom-Inference-Engine
 
-Package and inference stuff for **.axim** model files. One binary, everything inside. No zip bullshit, no folder juggling, no "where did i put the tokenizer" moments.
+Package and inference stuff for **.axim** model files. One binary, everything inside.
 
-This repo is basically made for my [Axiom lineup of models](https://huggingface.co/Strawbercar). As of right now that's just Axiom-V1-Base but hey, gotta start somewhere.
+This repo is basically made for my [Axiom lineup of models](https://huggingface.co/Strawbercar). As of right now that's just Axiom-V1-Base and maybe a finetuned model.
 
 ---
 
@@ -15,19 +15,17 @@ This repo is basically made for my [Axiom lineup of models](https://huggingface.
 - **tokenizer** (pickled tiktoken encoding)
 - **metadata** (training info, whatever else)
 
-It's not zip. It's not a tar. It's a proper binary with a header and section table so you can jump straight to whatever you need without unpacking anything.
-
 ### Why not just use safetensors?
 
-Safetensors is great for weights but it's *just* weights. You still need the config file, the tokenizer file, the metadata file... before you know it you've got 5 files scattered across your downloads folder and you're questioning your life choices.
+Safetensors is great for weights but it's *just* weights. You still need the config file, the tokenizer file, the metadata file... before you know it you've got 5 files scattered across your downloads folder.. oh and also i got sick of manuelly typing out massive commands and stuff
 
 ### Why not GGUF?
 
-GGUF is cool but it's built for llama.cpp architectures. My models use nanoChat (Karpathy's thing) which has custom stuff like value embeddings, smear, backout, relu² activations — none of which llama.cpp understands. So GGUF was a non-starter.
+GGUF is cool but it's built for llama.cpp architectures. My models use nanoChat (Karpathy's thing) which has custom stuff like value embeddings, smear, backout, relu² activations which none of llama.cpp understands. So GGUF was a non-starter.
 
 ### Why not just a zip file?
 
-Zips are fine but they feel... cheap? Like you're just dumping files in a bag. .axim is a *format*. It has a spec. It has dignity.
+Zips are fine but this is cooler.
 
 ---
 
@@ -67,7 +65,7 @@ cd Axiom-Inference-Engine
 pip install -r requirements.txt
 ```
 
-You'll also need nanoChat installed since that's what runs the models:
+You'll also need nanoChat since that's what runs the models:
 ```bash
 git clone https://github.com/karpathy/nanochat.git
 ```
@@ -158,7 +156,7 @@ Supports streaming too, just add `"stream": true`.
 
 ### Web UI
 
-Open `webui/index.html` in a browser. It's a dead simple chat interface that talks to the API server. No build step, no npm, no webpack, just a single HTML file.
+Open `webui/index.html` in a browser.
 
 Point it at your API endpoint (default is `http://localhost:8000/v1/chat/completions`) and chat away.
 
@@ -192,7 +190,7 @@ Loading an .axim file is basically as fast as loading safetensors because the we
 - Parsing a few KB of JSON
 - Unpickling the tokenizer
 
-So like, microseconds. The weights load via `safetensors.load()` which is already optimized.
+So microseconds. The weights load via `safetensors.load()` which is already optimized.
 
 ---
 
@@ -215,7 +213,7 @@ So like, microseconds. The weights load via `safetensors.load()` which is alread
 - [ ] Model zoo / registry
 - [ ] Digital signatures for .axim files
 
-No promises though. This is a side project built on a shoestring budget.
+No promises though.
 
 ---
 
@@ -231,9 +229,3 @@ Made with around $100 by Strawbercar, released under the Axiom Research Project.
 - **Anyone who's ever released open source ML tools** — you know who you are
 
 ---
-
-## License
-
-MIT or whatever. Use it, fork it, improve it. Just don't be a dick about it.
-
-If you build something cool with this, let me know. I'd love to see it.
