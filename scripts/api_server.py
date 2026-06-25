@@ -119,10 +119,19 @@ def _generate(model, tok, prompt_ids, max_tok, temp, top_k, device):
 def _make_app(model, tok, cfg, device):
     from fastapi import FastAPI, Request
     from fastapi.responses import StreamingResponse, JSONResponse
+    from fastapi.middleware.cors import CORSMiddleware
     import uuid
     import time
     
     app = FastAPI(title="axim api", version="1.0")
+    
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     
     @app.get("/v1/models")
     async def list_models():
