@@ -4,12 +4,14 @@ OpenAI-compatible API server for .axim models.
 Usage:
     python api_server.py --axim model.axim --device cuda
     python api_server.py --axim model.axim --port 8080
+    python api_server.py --axim model.axim               # picks a random free port
 """
 
 import os
 import sys
 import json
 import argparse
+import socket
 from pathlib import Path
 
 import torch
@@ -240,13 +242,24 @@ def _make_app(model, tok, cfg, device):
     return app
 
 
+def _find_free_port(start=8000, end=9000):
+    """Find an available TCP port in the given range."""
+    for port in range(start, end):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("localhost", port)) != 0:
+                return port
+    raise RuntimeError(f"no free port found in range {start}-{end}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--axim", type=str, required=True)
     parser.add_argument("--host", type=str, default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--port", type=int, default=None, help="port to listen on (random free port if omitted)")
     parser.add_argument("--device", type=str, default="cpu")
     args = parser.parse_args()
+    
+    port = args.port if args.port is not None else _find_free_port()
     
     device = torch.device(args.device)
     model, tokenizer, cfg = _load_model(args.axim, device)
@@ -259,8 +272,8 @@ def main():
     app = _make_app(model, tok, cfg, device)
     
     import uvicorn
-    print(f"server: http://{args.host}:{args.port}")
-    uvicorn.run(app, host=args.host, port=args.port)
+    print(f"server: http://{args.host}:{port}")
+    uvicorn.run(app, host=args.host, port=port)
 
 
 if __name__ == "__main__":
