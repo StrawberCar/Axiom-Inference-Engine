@@ -107,41 +107,14 @@ def _load_from_axim(axim_path, device):
 
 @torch.inference_mode()
 def generate(model, tokenizer, prompt_text, max_tokens=50, temperature=0.7, top_k=50, repetition_penalty=1.0, device="cpu"):
-    ids = tokenizer.encode_ordinary(prompt_text)
-    if len(ids) == 0:
-        ids = [tokenizer.encode_single_token("<|bos|>")]
+    # ALWAYS prepend BOS token — the model was trained with it at every document start
+    bos = tokenizer.encode_single_token("<|bos|>")
+    ids = [bos] + tokenizer.encode_ordinary(prompt_text)
     
-    input_ids = torch.tensor([ids], dtype=torch.long, device=device)
+    # Use the model's own generate() method — it handles smear, KV cache, etc. correctly
     generated = []
-    
-    for _ in range(max_tokens):
-        logits = model(input_ids)
-        logits = logits[:, -1, :]
-        
-        # apply repetition penalty
-        if repetition_penalty != 1.0 and len(generated) > 0:
-            seen = set(generated)
-            for token_id in seen:
-                if logits[0, token_id] > 0:
-                    logits[0, token_id] /= repetition_penalty
-                else:
-                    logits[0, token_id] *= repetition_penalty
-        
-        if top_k and top_k > 0:
-            v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-            logits[logits < v[:, [-1]]] = -float('Inf')
-        
-        if temperature <= 0:
-            nxt = torch.argmax(logits, dim=-1, keepdim=True)
-        else:
-            nxt = torch.multinomial(F.softmax(logits / temperature, dim=-1), 1)
-        
-        input_ids = torch.cat((input_ids, nxt), dim=1)
-        t = nxt.item()
-        generated.append(t)
-        
-        if input_ids.size(1) >= model.config.sequence_len:
-            break
+    for token in model.generate(ids, max_tokens=max_tokens, temperature=temperature, top_k=top_k):
+        generated.append(token)
     
     return tokenizer.decode(generated)
 

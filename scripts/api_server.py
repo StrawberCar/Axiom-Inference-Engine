@@ -92,41 +92,16 @@ class _TokenizerWrap:
 
 @torch.inference_mode()
 def _generate(model, tok, prompt_ids, max_tok, temp, top_k, device, repetition_penalty=1.0):
-    ids = torch.tensor([prompt_ids], dtype=torch.long, device=device)
+    """Use model's built-in generate() which handles smear/KV-cache correctly."""
+    # Use model.generate() for proper smear and KV cache handling
+    # model.generate() yields tokens one at a time
     generated = []
-    
-    for _ in range(max_tok):
-        logits = model(ids)
-        logits = logits[:, -1, :]
-        
-        # apply repetition penalty
-        if repetition_penalty != 1.0 and len(generated) > 0:
-            seen = set(generated)
-            for token_id in seen:
-                if logits[0, token_id] > 0:
-                    logits[0, token_id] /= repetition_penalty
-                else:
-                    logits[0, token_id] *= repetition_penalty
-        
-        if top_k and top_k > 0:
-            v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-            logits[logits < v[:, [-1]]] = -float('Inf')
-        
-        if temp <= 0:
-            nxt = torch.argmax(logits, dim=-1, keepdim=True)
-        else:
-            nxt = torch.multinomial(F.softmax(logits / temp, dim=-1), 1)
-        
-        ids = torch.cat((ids, nxt), dim=1)
-        t = nxt.item()
-        generated.append(t)
-        
-        if t == tok.encode_special("<|assistant_end|>") or t == tok.bos:
+    for token in model.generate(prompt_ids, max_tokens=max_tok, temperature=temp, top_k=top_k):
+        # Check stop tokens
+        if token == tok.encode_special("<|assistant_end|>") or token == tok.bos:
             break
-        if ids.size(1) >= model.config.sequence_len:
-            break
-        
-        yield t
+        generated.append(token)
+        yield token
 
 
 def _make_app(model, tok, cfg, device):
@@ -168,6 +143,10 @@ def _make_app(model, tok, cfg, device):
         prompt_ids = tok.encode(prompt)
         if len(prompt_ids) == 0:
             prompt_ids = [tok.bos]
+        else:
+            # Prepend BOS if not already present
+            if prompt_ids[0] != tok.bos:
+                prompt_ids = [tok.bos] + prompt_ids
         
         if stream:
             async def _stream():
