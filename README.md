@@ -10,7 +10,7 @@ This repo is basically made for my [Axiom lineup of models](https://huggingface.
 
 .axim is a binary format that stuffs everything you need into one file:
 
-- **weights** (safetensors format — fast, memory-mappable)
+- **weights** (safetensors format, fast, memory-mappable)
 - **config** (json with architecture details)
 - **tokenizer** (pickled tiktoken encoding)
 - **metadata** (training info, whatever else)
