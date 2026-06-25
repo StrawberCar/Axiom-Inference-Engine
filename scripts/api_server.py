@@ -142,6 +142,52 @@ def _make_app(model, tok, cfg, device):
             "owned_by": "axim",
         }]}
     
+    @app.post("/v1/completions")
+    async def completions(request: Request):
+        body = await request.json()
+        prompt = body.get("prompt", "")
+        max_tok = body.get("max_tokens", 256)
+        temp = body.get("temperature", 0.7)
+        stream = body.get("stream", False)
+        greedy = temp == 0
+        
+        prompt_ids = tok.encode(prompt)
+        if len(prompt_ids) == 0:
+            prompt_ids = [tok.bos]
+        
+        if stream:
+            async def _stream():
+                rid = f"cmpl-{uuid.uuid4().hex}"
+                cr = int(time.time())
+                yield f"data: {json.dumps({'id': rid, 'object': 'text_completion.chunk', 'created': cr, 'model': cfg.get('model_type', 'axim'), 'choices': [{'index': 0, 'text': '', 'finish_reason': None}]})}\n\n"
+                
+                t = 0.0 if greedy else temp
+                k = None if greedy else 50
+                for token in _generate(model, tok, prompt_ids, max_tok, t, k, device):
+                    txt = tok.decode([token])
+                    yield f"data: {json.dumps({'id': rid, 'object': 'text_completion.chunk', 'created': cr, 'model': cfg.get('model_type', 'axim'), 'choices': [{'index': 0, 'text': txt, 'finish_reason': None}]})}\n\n"
+                
+                yield f"data: {json.dumps({'id': rid, 'object': 'text_completion.chunk', 'created': cr, 'model': cfg.get('model_type', 'axim'), 'choices': [{'index': 0, 'text': '', 'finish_reason': 'stop'}]})}\n\n"
+                yield "data: [DONE]\n\n"
+            
+            return StreamingResponse(_stream(), media_type="text/event-stream")
+        
+        else:
+            toks = []
+            t = 0.0 if greedy else temp
+            k = None if greedy else 50
+            for token in _generate(model, tok, prompt_ids, max_tok, t, k, device):
+                toks.append(token)
+            
+            return JSONResponse({
+                "id": f"cmpl-{uuid.uuid4().hex}",
+                "object": "text_completion",
+                "created": int(time.time()),
+                "model": cfg.get("model_type", "axim"),
+                "choices": [{"index": 0, "text": tok.decode(toks), "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": len(prompt_ids), "completion_tokens": len(toks), "total_tokens": len(prompt_ids) + len(toks)},
+            })
+    
     @app.post("/v1/chat/completions")
     async def chat(request: Request):
         body = await request.json()
