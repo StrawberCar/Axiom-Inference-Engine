@@ -3,7 +3,7 @@ Test inference on a model from raw safetensors files (no .axim needed).
 
 Usage:
     python test_inference.py --model-dir ./model-safetensors --prompt "hello world" --max-tokens 50
-    python test_inference.py --model-dir ./model-safetensors --device cuda
+    python test_inference.py --model-dir ./model-safetensors --device cuda --temperature 0.1 --repetition-penalty 1.2
 """
 
 import os
@@ -106,7 +106,7 @@ def _load_from_axim(axim_path, device):
 
 
 @torch.inference_mode()
-def generate(model, tokenizer, prompt_text, max_tokens=50, temperature=0.7, top_k=50, device="cpu"):
+def generate(model, tokenizer, prompt_text, max_tokens=50, temperature=0.7, top_k=50, repetition_penalty=1.0, device="cpu"):
     ids = tokenizer.encode_ordinary(prompt_text)
     if len(ids) == 0:
         ids = [tokenizer.encode_single_token("<|bos|>")]
@@ -117,6 +117,15 @@ def generate(model, tokenizer, prompt_text, max_tokens=50, temperature=0.7, top_
     for _ in range(max_tokens):
         logits = model(input_ids)
         logits = logits[:, -1, :]
+        
+        # apply repetition penalty
+        if repetition_penalty != 1.0 and len(generated) > 0:
+            seen = set(generated)
+            for token_id in seen:
+                if logits[0, token_id] > 0:
+                    logits[0, token_id] /= repetition_penalty
+                else:
+                    logits[0, token_id] *= repetition_penalty
         
         if top_k and top_k > 0:
             v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
@@ -145,6 +154,7 @@ def main():
     parser.add_argument("--max-tokens", type=int, default=50, help="max tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="sampling temperature")
     parser.add_argument("--top-k", type=int, default=50, help="top-k sampling")
+    parser.add_argument("--repetition-penalty", type=float, default=1.0, help="repetition penalty (>1.0 = less repetition)")
     parser.add_argument("--device", type=str, default="cpu", help="cpu or cuda")
     args = parser.parse_args()
     
@@ -172,9 +182,9 @@ def main():
     print(f"\nloaded {total:,} params ({total/1e9:.2f}B)")
     print(f"device: {device}")
     print(f"prompt: {args.prompt!r}")
-    print(f"generating {args.max_tokens} tokens (temp={args.temperature}, top_k={args.top_k})...\n")
+    print(f"generating {args.max_tokens} tokens (temp={args.temperature}, top_k={args.top_k}, rep_penalty={args.repetition_penalty})...\n")
     
-    output = generate(model, tokenizer, args.prompt, args.max_tokens, args.temperature, args.top_k, device)
+    output = generate(model, tokenizer, args.prompt, args.max_tokens, args.temperature, args.top_k, args.repetition_penalty, device)
     
     print("=" * 50)
     print(args.prompt + output)

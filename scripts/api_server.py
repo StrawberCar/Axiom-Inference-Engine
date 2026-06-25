@@ -91,12 +91,22 @@ class _TokenizerWrap:
 
 
 @torch.inference_mode()
-def _generate(model, tok, prompt_ids, max_tok, temp, top_k, device):
+def _generate(model, tok, prompt_ids, max_tok, temp, top_k, device, repetition_penalty=1.0):
     ids = torch.tensor([prompt_ids], dtype=torch.long, device=device)
+    generated = []
     
     for _ in range(max_tok):
         logits = model(ids)
         logits = logits[:, -1, :]
+        
+        # apply repetition penalty
+        if repetition_penalty != 1.0 and len(generated) > 0:
+            seen = set(generated)
+            for token_id in seen:
+                if logits[0, token_id] > 0:
+                    logits[0, token_id] /= repetition_penalty
+                else:
+                    logits[0, token_id] *= repetition_penalty
         
         if top_k and top_k > 0:
             v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
@@ -109,6 +119,7 @@ def _generate(model, tok, prompt_ids, max_tok, temp, top_k, device):
         
         ids = torch.cat((ids, nxt), dim=1)
         t = nxt.item()
+        generated.append(t)
         
         if t == tok.encode_special("<|assistant_end|>") or t == tok.bos:
             break
@@ -152,6 +163,7 @@ def _make_app(model, tok, cfg, device):
         temp = body.get("temperature", 0.7)
         stream = body.get("stream", False)
         greedy = temp == 0
+        rep_pen = body.get("repetition_penalty", 1.0)
         
         prompt_ids = tok.encode(prompt)
         if len(prompt_ids) == 0:
@@ -165,7 +177,7 @@ def _make_app(model, tok, cfg, device):
                 
                 t = 0.0 if greedy else temp
                 k = None if greedy else 50
-                for token in _generate(model, tok, prompt_ids, max_tok, t, k, device):
+                for token in _generate(model, tok, prompt_ids, max_tok, t, k, device, rep_pen):
                     txt = tok.decode([token])
                     yield f"data: {json.dumps({'id': rid, 'object': 'text_completion.chunk', 'created': cr, 'model': cfg.get('model_type', 'axim'), 'choices': [{'index': 0, 'text': txt, 'finish_reason': None}]})}\n\n"
                 
@@ -178,7 +190,7 @@ def _make_app(model, tok, cfg, device):
             toks = []
             t = 0.0 if greedy else temp
             k = None if greedy else 50
-            for token in _generate(model, tok, prompt_ids, max_tok, t, k, device):
+            for token in _generate(model, tok, prompt_ids, max_tok, t, k, device, rep_pen):
                 toks.append(token)
             
             return JSONResponse({
@@ -198,6 +210,7 @@ def _make_app(model, tok, cfg, device):
         temp = body.get("temperature", 0.7)
         stream = body.get("stream", False)
         greedy = temp == 0
+        rep_pen = body.get("repetition_penalty", 1.0)
         
         prompt = tok.render_chat(msgs, max_len=cfg["max_position_embeddings"])
         prompt.append(tok.encode_special("<|assistant_start|>"))
@@ -210,7 +223,7 @@ def _make_app(model, tok, cfg, device):
                 
                 t = 0.0 if greedy else temp
                 k = None if greedy else 50
-                for token in _generate(model, tok, prompt, max_tok, t, k, device):
+                for token in _generate(model, tok, prompt, max_tok, t, k, device, rep_pen):
                     txt = tok.decode([token])
                     yield f"data: {json.dumps({'id': rid, 'object': 'chat.completion.chunk', 'created': cr, 'model': cfg.get('model_type', 'axim'), 'choices': [{'index': 0, 'delta': {'content': txt}, 'finish_reason': None}]})}\n\n"
                 
@@ -223,7 +236,7 @@ def _make_app(model, tok, cfg, device):
             toks = []
             t = 0.0 if greedy else temp
             k = None if greedy else 50
-            for token in _generate(model, tok, prompt, max_tok, t, k, device):
+            for token in _generate(model, tok, prompt, max_tok, t, k, device, rep_pen):
                 toks.append(token)
             
             return JSONResponse({
