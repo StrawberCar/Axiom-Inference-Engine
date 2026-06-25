@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>axim inference</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d0d0d;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #222;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 { font-size: 1.2rem; color: #fff; }
+        header span { color: #666; font-size: 0.85rem; }
+        main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        #sidebar {
+            width: 280px;
+            border-right: 1px solid #222;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .field label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+        .field input, .field select {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .field input:focus, .field select:focus {
+            outline: none;
+            border-color: #555;
+        }
+        #chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+        }
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .msg {
+            max-width: 80%;
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            line-height: 1.5;
+        }
+        .msg.user {
+            align-self: flex-end;
+            background: #1a3a2a;
+        }
+        .msg.assistant {
+            align-self: flex-start;
+            background: #1a1a2a;
+        }
+        .msg .role {
+            font-size: 0.7rem;
+            color: #888;
+            margin-bottom: 0.3rem;
+            text-transform: uppercase;
+        }
+        #input-area {
+            display: flex;
+            gap: 0.5rem;
+        }
+        #input-area textarea {
+            flex: 1;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 0.8rem;
+            border-radius: 4px;
+            resize: none;
+            height: 60px;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+        #input-area textarea:focus { outline: none; border-color: #555; }
+        #send {
+            background: #2a2a4a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            padding: 0 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        #send:hover { background: #33335a; }
+        #send:disabled { opacity: 0.5; cursor: not-allowed; }
+        .typing { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>axim inference</h1>
+        <span>v1.0</span>
+    </header>
+    <main>
+        <div id="sidebar">
+            <div class="field">
+                <label>api endpoint</label>
+                <input type="text" id="endpoint" value="http://localhost:8000/v1/chat/completions">
+            </div>
+            <div class="field">
+                <label>temperature</label>
+                <input type="number" id="temp" value="0.7" min="0" max="2" step="0.1">
+            </div>
+            <div class="field">
+                <label>max tokens</label>
+                <input type="number" id="max_tokens" value="256" min="1" max="2048">
+            </div>
+            <div class="field">
+                <label>system prompt</label>
+                <textarea id="system" style="height: 80px; background: #1a1a1a; border: 1px solid #333; color: #e0e0e0; padding: 0.5rem; border-radius: 4px; resize: none; font-family: inherit;"></textarea>
+            </div>
+        </div>
+        <div id="chat">
+            <div id="messages"></div>
+            <div id="input-area">
+                <textarea id="user-input" placeholder="type something..."></textarea>
+                <button id="send">send</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const messages = [];
+        const msgsDiv = document.getElementById('messages');
+        const input = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send');
+        const endpoint = document.getElementById('endpoint');
+        const temp = document.getElementById('temp');
+        const maxTokens = document.getElementById('max_tokens');
+        const system = document.getElementById('system');
+
+        function addMsg(role, text) {
+            const div = document.createElement('div');
+            div.className = `msg ${role}`;
+            div.innerHTML = `<div class="role">${role}</div>${text}`;
+            msgsDiv.appendChild(div);
+            msgsDiv.scrollTop = msgsDiv.scrollHeight;
+        }
+
+        async function send() {
+            const text = input.value.trim();
+            if (!text) return;
+            
+            input.value = '';
+            addMsg('user', text);
+            sendBtn.disabled = true;
+            
+            const msgs = [];
+            if (system.value.trim()) {
+                msgs.push({role: 'system', content: system.value.trim()});
+            }
+            msgs.push({role: 'user', content: text});
+            
+            const typing = document.createElement('div');
+            typing.className = 'msg assistant typing';
+            typing.innerHTML = '<div class="role">assistant</div>thinking...';
+            msgsDiv.appendChild(typing);
+            msgsDiv.scrollTop = msgsDiv.scrollHeight;
+            
+            try {
+                const resp = await fetch(endpoint.value, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        model: 'axim',
+                        messages: msgs,
+                        temperature: parseFloat(temp.value),
+                        max_tokens: parseInt(maxTokens.value),
+                        stream: false
+                    })
+                });
+                
+                const data = await resp.json();
+                typing.remove();
+                
+                if (data.choices && data.choices[0]) {
+                    addMsg('assistant', data.choices[0].message.content);
+                } else {
+                    addMsg('assistant', 'error: ' + JSON.stringify(data));
+                }
+            } catch (e) {
+                typing.remove();
+                addMsg('assistant', 'error: ' + e.message);
+            }
+            
+            sendBtn.disabled = false;
+        }
+
+        sendBtn.addEventListener('click', send);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send();
+            }
+        });
+    </script>
+</body>
+</html>
