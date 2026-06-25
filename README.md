@@ -10,4 +10,4 @@ This repository contains the basic scripts required to know how .axim files work
 
 *Special thanks to the amazing people behind Transformers, Andrej Karpathy's NanoChat, Huggingface, Pkl, llama.cpp, and other potential contributing libraries, research, or products that have inspired me.*
 
-Made with around $100 by Strawbercar, Released under the Axiom Research Project.
+-# Made with around $100 by Strawbercar, Released under the Axiom Research Project.
