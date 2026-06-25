@@ -6,7 +6,7 @@ This repository contains the basic scripts required to know how .axim files work
 #### As of 26/6/2026 this repository is basically made just for my axiom lineup of models. https://huggingface.co/Strawbercar/Axiom-V1-Base
 ---
 
-ALMOST ALL OF THE WORK HERE WAS DONE ON TRANSFORMERS SIDE, NOT MINE. I BARELY TOOK A SAFETENSORS MODEL AND PACAKGED IT UP INTO A NEAT BINARY SO ITS EASIER TO USE MY MODEL.
+ALMOST ALL OF THE WORK HERE WAS DONE ON TRANSFORMERS SIDE, NOT MINE. I TOOK A SAFETENSORS MODEL WITH ITS OTHER FILES AND PACAKGED IT UP INTO A NEAT SINGLE BINARY SO ITS EASIER TO USE MY MODEL.
 
 ---
 
