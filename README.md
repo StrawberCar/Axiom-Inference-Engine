@@ -134,6 +134,20 @@ python scripts/export_to_axim.py \
     --output model.axim
 ```
 
+### Test raw model inference (no server needed)
+
+If you just want to verify a model works without spinning up the API:
+
+```bash
+# from raw safetensors files
+python scripts/test_inference.py --model-dir ./model-safetensors --prompt "hello world" --max-tokens 50
+
+# or from an .axim file
+python scripts/test_inference.py --axim model.axim --prompt "hello world" --max-tokens 50
+```
+
+This loads the model directly and prints generated text — no server, no HTTP, no port conflicts.
+
 ### Run the API server
 
 ```bash
@@ -188,6 +202,7 @@ Axiom-Inference-Engine/
 │   ├── export_to_axim.py    # export nanoChat models to .axim
 │   ├── api_server.py        # OpenAI-compatible API server
 │   ├── inspect_axim.py      # quick .axim inspector
+│   ├── test_inference.py    # direct inference test (no server)
 │   └── example_load.py      # example inference script
 ├── webui/
 │   └── index.html           # simple chat web interface
