@@ -117,6 +117,8 @@ tokenizer = data["tokenizer"]  # tiktoken Encoding
 metadata = data["metadata"]    # dict
 ```
 
+Or see `scripts/test_inference.py` for a complete working example of loading + generation.
+
 ### Export a model to .axim
 
 ```bash
@@ -202,8 +204,7 @@ Axiom-Inference-Engine/
 │   ├── export_to_axim.py    # export nanoChat models to .axim
 │   ├── api_server.py        # OpenAI-compatible API server
 │   ├── inspect_axim.py      # quick .axim inspector
-│   ├── test_inference.py    # direct inference test (no server)
-│   └── example_load.py      # example inference script
+│   └── test_inference.py    # direct inference test (no server)
 ├── webui/
 │   └── index.html           # simple chat web interface
 ├── requirements.txt         # python deps
