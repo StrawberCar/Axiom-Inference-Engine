@@ -141,10 +141,25 @@ python scripts/api_server.py --axim model.axim --device cuda
 ```
 
 Then hit it with standard OpenAI-style requests:
+
+**Linux / macOS:**
 ```bash
 curl http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
+    "model": "axim",
+    "messages": [{"role": "user", "content": "hello"}],
+    "max_tokens": 50,
+    "temperature": 0.7
+  }'
+```
+
+**Windows (PowerShell):**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8000/v1/chat/completions" `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{
     "model": "axim",
     "messages": [{"role": "user", "content": "hello"}],
     "max_tokens": 50,
