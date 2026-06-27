@@ -106,16 +106,35 @@ def _load_from_axim(axim_path, device):
 
 
 @torch.inference_mode()
-def generate(model, tokenizer, prompt_text, max_tokens=50, temperature=0.7, top_k=50, repetition_penalty=1.0, device="cpu"):
-    # ALWAYS prepend BOS token — the model was trained with it at every document start
-    bos = tokenizer.encode_single_token("<|bos|>")
-    ids = [bos] + tokenizer.encode_ordinary(prompt_text)
-    
-    # Use the model's own generate() method — it handles smear, KV cache, etc. correctly
+def generate(model, tokenizer, prompt_text, max_tokens=50, temperature=0.7, top_k=50,
+             repetition_penalty=1.0, device="cpu", chat=False, system_prompt=None):
+    if chat:
+        # Render the prompt as a proper chat turn:
+        #   <|bos|><|user_start|>...prompt...<|user_end|><|assistant_start|>
+        # The model was SFT-trained on exactly this scaffold, so it will (should)
+        # emit <|assistant_end|> when it is done. We stop on that token and treat
+        # max_tokens as the diaper: a hard fallback in case the model never emits it.
+        from sft_data import AximTokenizer
+        axtok = AximTokenizer(tokenizer)
+        assistant_end_id = axtok.encode_special("<|assistant_end|>")
+        msgs = []
+        if system_prompt:
+            msgs.append({"role": "system", "content": system_prompt})
+        msgs.append({"role": "user", "content": prompt_text})
+        ids = axtok.render_for_inference({"messages": msgs}, max_tokens=2048)
+    else:
+        # Raw completion: just prepend BOS (the model was trained with it at every doc start).
+        bos = tokenizer.encode_single_token("<|bos|>")
+        ids = [bos] + tokenizer.encode_ordinary(prompt_text)
+
+    # Use the model's own generate() method — it handles smear, KV cache, etc. correctly.
     generated = []
     for token in model.generate(ids, max_tokens=max_tokens, temperature=temperature, top_k=top_k):
+        if chat and token == assistant_end_id:
+            break  # model emitted its end-of-turn marker -> stop cleanly here
         generated.append(token)
-    
+    # If we exit via the for-loop (not the break), max_tokens was the diaper:
+    # the model failed to emit <|assistant_end|> and we capped it anyway.
     return tokenizer.decode(generated)
 
 
@@ -129,6 +148,11 @@ def main():
     parser.add_argument("--top-k", type=int, default=50, help="top-k sampling")
     parser.add_argument("--repetition-penalty", type=float, default=1.0, help="repetition penalty (>1.0 = less repetition)")
     parser.add_argument("--device", type=str, default="cpu", help="cpu or cuda")
+    parser.add_argument("--chat", action="store_true",
+                        help="chat mode: render the prompt as a user turn and STOP on <|assistant_end|>. "
+                             "Use this for SFT'd chat models. max-tokens is a hard fallback (diaper).")
+    parser.add_argument("--system-prompt", type=str, default=None,
+                        help="(chat mode only) optional system message prepended to the prompt")
     args = parser.parse_args()
     
     if not args.model_dir and not args.axim:
@@ -155,9 +179,12 @@ def main():
     print(f"\nloaded {total:,} params ({total/1e9:.2f}B)")
     print(f"device: {device}")
     print(f"prompt: {args.prompt!r}")
-    print(f"generating {args.max_tokens} tokens (temp={args.temperature}, top_k={args.top_k}, rep_penalty={args.repetition_penalty})...\n")
-    
-    output = generate(model, tokenizer, args.prompt, args.max_tokens, args.temperature, args.top_k, args.repetition_penalty, device)
+    mode = "chat (stops on <|assistant_end|>)" if args.chat else "raw completion"
+    print(f"mode: {mode}")
+    print(f"generating up to {args.max_tokens} tokens (temp={args.temperature}, top_k={args.top_k}, rep_penalty={args.repetition_penalty})...\n")
+
+    output = generate(model, tokenizer, args.prompt, args.max_tokens, args.temperature, args.top_k,
+                       args.repetition_penalty, device, chat=args.chat, system_prompt=args.system_prompt)
     
     print("=" * 50)
     print(args.prompt + output)
