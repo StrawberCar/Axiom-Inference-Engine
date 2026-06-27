@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axim"
+version = "1.0.0"
+description = "Package and inference engine for .axim model files"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.0",
+    "safetensors>=0.4",
+    "tiktoken",
+    "fastapi",
+    "uvicorn",
+    "numpy",
+    "huggingface_hub",
+    "datasets",
+    "filelock",
+]
+
+[project.optional-dependencies]
+sft = ["accelerate", "tqdm"]
+flash = ["flash-attn"]
+
+[project.scripts]
+axim = "axim.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["axim*"]
