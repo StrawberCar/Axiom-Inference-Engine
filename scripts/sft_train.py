@@ -324,6 +324,14 @@ def main():
     step = start_step
 
     print0("starting training...")
+    # Baseline val loss BEFORE any updates, so you can see whether training actually
+    # improves it (val_loss is the real metric - the per-step "loss" is noisy and
+    # structurally inflated by being measured pre-step during active optimization).
+    if val_ex:
+        base_val = _eval_loss(orig_model, val_ex, C, tokenizer, device, ddp_world_size)
+        best_val = base_val
+        print0(f"baseline val_loss {base_val:.4f} | ppl {math.exp(min(20.0, base_val)):.2f} "
+               f"(this is the base model's held-out loss; watch val_loss go DOWN from here)")
     while step < max_steps:
         t0 = time.time()
         optimizer_loss = 0.0
@@ -579,6 +587,7 @@ def _eval_loss(model, val_ex, C, tokenizer, device, world_size):
 def _sample(model, tokenizer, val_rows, C, device, max_seq_len):
     """Generate a few completions from val conversations to eyeball quality."""
     from sft_data import normalize_record
+    from nanochat.common import print0
     model.eval()
     import random
     rng = random.Random(123)
