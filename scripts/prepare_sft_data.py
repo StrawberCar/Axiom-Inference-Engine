@@ -7,7 +7,7 @@ filters to valid user/assistant conversations, shuffles, splits into train/val,
 and writes two JSONL files ready for sft_train.py.
 
 Usage:
-    python scripts/prepare_sft_data.py --repo HuggingFaceH4/smoltalk \
+    python scripts/prepare_sft_data.py --repo HuggingFaceTB/smoltalk \
         --config smol-magpie-ultra --train-examples 2000 --val-examples 200 \
         --output-train train.jsonl --output-val val.jsonl --seed 42
 """

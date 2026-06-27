@@ -53,7 +53,13 @@ def main():
             raise SystemExit(f"--filename {target!r} not found in repo; available .axim: {axim_files}")
         print(f"\nrepo has a ready .axim ({target}); downloading ...")
         dl = hf_hub_download(args.repo, target)
-        shutil.move(dl, out)
+        # hf_hub_download returns a snapshot path that is a symlink into the HF
+        # cache blobs; moving that symlink would relocate the *link* (not the file),
+        # leaving a dangling symlink. Resolve to the real blob and copy the bytes.
+        real = os.path.realpath(dl)
+        if not os.path.exists(real):
+            raise SystemExit(f"downloaded file could not be resolved: {dl}")
+        shutil.copy2(real, out)
         print(f"done -> {out} ({out.stat().st_size / 1e9:.2f} GB)")
         return
 

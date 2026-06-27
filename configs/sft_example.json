@@ -1,0 +1,50 @@
+{
+  "_comment": "Example SFT config for an .axim model. Any field here can be overridden on the CLI. Run with: python scripts/sft_train.py --config configs/sft_example.json",
+
+  "base_model": "model.axim",
+  "train": "data/example_sft.jsonl",
+  "val": null,
+  "val_frac": 0.1,
+  "output": "out/finetuned.axim",
+  "out_dir": "out/sft_checkpoints",
+
+  "device": "",
+  "dtype": "",
+  "compile": 0,
+
+  "max_seq_len": 2048,
+  "train_on": "assistant",
+  "pack": "bestfit",
+  "system_prompt": null,
+  "seed": 42,
+
+  "batch_size": 4,
+  "grad_accum": 8,
+  "epochs": 3,
+  "steps": -1,
+  "max_grad_norm": 1.0,
+
+  "optimizer": "muon",
+  "matrix_lr": 0.02,
+  "embedding_lr": 0.3,
+  "unembedding_lr": 0.004,
+  "scalar_lr": 0.5,
+  "weight_decay": 0.0,
+
+  "init_lr_frac": 0.5,
+  "warmup_ratio": 0.03,
+  "warmdown_ratio": 0.2,
+  "final_lr_frac": 0.0,
+
+  "eval_every": 200,
+  "eval_steps": 20,
+  "sample_every": 500,
+  "sample_prompts": 3,
+  "sample_tokens": 64,
+  "save_every": -1,
+  "checkpoint_every": -1,
+  "save_optim": 0,
+  "resume_from": null,
+  "wandb": "dummy",
+  "log_every": 1
+}
