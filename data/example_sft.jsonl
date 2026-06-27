@@ -1,0 +1,5 @@
+{"messages": [{"role": "system", "content": "You are Axiom, a concise and helpful assistant."}, {"role": "user", "content": "What is the capital of France?"}, {"role": "assistant", "content": "The capital of France is Paris."}]}
+{"messages": [{"role": "user", "content": "Write a haiku about the ocean."}, {"role": "assistant", "content": "Waves whisper to shore,\nblue beyond the horizon,\nsalt upon the wind."}]}
+{"prompt": "Explain recursion in one sentence.", "completion": "Recursion is when a function solves a problem by calling itself on a smaller version of the same problem."}
+{"instruction": "Translate to French", "input": "Good morning", "output": "Bonjour"}
+{"text": "The quick brown fox jumps over the lazy dog."}

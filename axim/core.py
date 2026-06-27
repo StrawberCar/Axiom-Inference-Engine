@@ -10,6 +10,7 @@ aka not a zip lmfao..
 import struct
 import json
 import pickle
+import os
 from pathlib import Path
 from typing import Dict, Any, Optional, BinaryIO
 from enum import IntEnum
@@ -110,10 +111,20 @@ def write_axim(
     path = Path(path)
     
     sections_data = []
-    
-    buf = BytesIO()
-    save_file(weights, buf)
-    sections_data.append((SectionType.WEIGHTS, "model.safetensors", buf.getvalue()))
+
+    # serialize weights to a safetensors blob (bytes). Newer safetensors versions
+    # reject a BytesIO in save_file(), so write to a temp file and read it back.
+    import tempfile
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".safetensors") as tmp:
+        tmp_path = tmp.name
+    try:
+        save_file(weights, tmp_path)
+        with open(tmp_path, "rb") as f:
+            weights_bytes = f.read()
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+    sections_data.append((SectionType.WEIGHTS, "model.safetensors", weights_bytes))
     
     cfg_bytes = json.dumps(config, indent=2).encode("utf-8")
     sections_data.append((SectionType.CONFIG, "config.json", cfg_bytes))

@@ -6,3 +6,12 @@ __pycache__/
 
 # NanoGPT repo (external)
 nanochat/
+.claude
+.remember
+configs
+*.ipynb
+.README.md
+
+# model artifacts (large, never commit)
+*.axim
+out/
