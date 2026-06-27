@@ -104,7 +104,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--eval-steps", type=int, default=None, help="number of val batches per eval")
     p.add_argument("--sample-every", type=int, default=None, help="generate sample completions every N steps (-1 = disable)")
     p.add_argument("--sample-prompts", type=int, default=None, help="number of val prompts to sample at each sample-every")
-    p.add_argument("--sample-tokens", type=int, default=None, help="max tokens per sample generation")
+    p.add_argument("--sample-tokens", type=int, default=None, help="max tokens per sample generation (raise for fair eval of non-stopping outputs)")
+    p.add_argument("--sample-static-file", type=str, default=None, help="JSONL of FIXED prompts to generate at every sample-every (one conversation per line). Same inputs every time -> watch the model improve on identical prompts.")
+    p.add_argument("--sample-random", type=int, default=None, help="number of RANDOM val prompts to generate at each sample-every (re-seeded by step so they vary). Use with --sample-static-file for static + random sampling.")
     p.add_argument("--save-every", type=int, default=None, help="save a numbered .axim snapshot every N steps (-1 = off). Each is a full copy of the model - heavy")
     p.add_argument("--checkpoint-every", type=int, default=None, help="overwrite a resumable checkpoint.axim+checkpoint.pt every N steps (-1 = off). Required for --resume-from to restore optimizer state")
     p.add_argument("--save-optim", type=int, default=None, help="persist optimizer state with the final model for later resume (0=no, 1=yes). ~2x model size for AdamW; smaller for Muon")
@@ -125,6 +127,7 @@ DEFAULTS: Dict[str, Any] = dict(
     scalar_lr=0.5, weight_decay=0.0, emb_lr_mult=1.0,
     init_lr_frac=0.5, warmup_ratio=0.03, warmdown_ratio=0.2, final_lr_frac=0.0,
     eval_every=200, eval_steps=20, sample_every=500, sample_prompts=3, sample_tokens=64,
+    sample_static_file=None, sample_random=None,
     save_every=-1, checkpoint_every=-1, save_optim=0, wandb="dummy", log_every=1,
 )
 
@@ -274,6 +277,16 @@ def main():
     if not train_ex:
         raise SystemExit("no usable training examples after rendering - check your data/format")
 
+    # Fixed sample prompts: loaded once so the SAME prompts are generated at every
+    # sample-every (controlled env to watch improvement). Random prompts are drawn
+    # fresh each sample-every inside _sample (seeded by step). Falls back to legacy
+    # fixed-seed val sampling when neither option is given.
+    if C["sample_static_file"]:
+        static_sample_rows = load_jsonl(C["sample_static_file"])
+        print0(f"loaded {len(static_sample_rows)} static sample prompts from {C['sample_static_file']}")
+    else:
+        static_sample_rows = None
+
     # In DDP, shard the training conversations across ranks so each rank sees a
     # distinct slice (true data-parallel). Validation is evaluated per-rank.
     if ddp:
@@ -399,7 +412,7 @@ def main():
 
         # ---- periodic generation samples ----
         if C["sample_every"] > 0 and (step % C["sample_every"] == 0) and val_rows:
-            _sample(orig_model, tokenizer, val_rows, C, device, max_seq_len)
+            _sample(orig_model, tokenizer, val_rows, C, device, max_seq_len, step, static_sample_rows)
 
         # ---- periodic numbered snapshot (heavy: full model copy) ----
         if C["save_every"] > 0 and step % C["save_every"] == 0:
@@ -584,15 +597,35 @@ def _eval_loss(model, val_ex, C, tokenizer, device, world_size):
 
 
 @torch.inference_mode()
-def _sample(model, tokenizer, val_rows, C, device, max_seq_len):
-    """Generate a few completions from val conversations to eyeball quality."""
+def _sample(model, tokenizer, val_rows, C, device, max_seq_len, step, static_rows):
+    """Generate completions from fixed (static) + random prompts to eyeball quality.
+
+    Static prompts (--sample-static-file) are the SAME every sample, so you can
+    watch the model improve on identical inputs. Random prompts (--sample-random)
+    are re-drawn from val_rows each sample (seeded by step) for variety. Falls back
+    to legacy fixed-seed val sampling when neither is given. A "[no-stop]" flag
+    marks generations that ran to the token cap without emitting <|assistant_end|>."""
     from sft_data import normalize_record
     from nanochat.common import print0
     model.eval()
     import random
-    rng = random.Random(123)
-    prompts = rng.sample(val_rows, min(C["sample_prompts"], len(val_rows)))
-    for row in prompts:
+
+    # Build the list of (label, row) generations to run this sample.
+    groups = []
+    if static_rows:
+        for i, row in enumerate(static_rows):
+            groups.append((f"static#{i+1}", row))
+        if C["sample_random"] and val_rows:
+            rrng = random.Random(123 + step)  # seed varies by step -> different each sample
+            for row in rrng.sample(val_rows, min(C["sample_random"], len(val_rows))):
+                groups.append(("random", row))
+    else:
+        # legacy: fixed-seed val sampling (unchanged behavior for old configs)
+        rng = random.Random(123)
+        for row in rng.sample(val_rows, min(C["sample_prompts"], len(val_rows))):
+            groups.append(("sample", row))
+
+    for label, row in groups:
         try:
             conv = normalize_record(row, default_system=C["system_prompt"])
             prompt_ids = tokenizer.render_for_inference(conv, max_tokens=max_seq_len)
@@ -606,12 +639,15 @@ def _sample(model, tokenizer, val_rows, C, device, max_seq_len):
             if m["role"] == "user" and isinstance(m["content"], str):
                 last_user = m["content"]
         out = []
+        stopped = False
         for tok in model.generate(prompt_ids, max_tokens=C["sample_tokens"], temperature=0.7, top_k=50):
             if tok == tokenizer.encode_special("<|assistant_end|>"):
+                stopped = True
                 break
             out.append(tok)
-        text = tokenizer.decode(out).replace("\n", " ")[:160]
-        print0(f"  [sample] Q: {last_user[:80]!r} -> A: {text!r}")
+        text = tokenizer.decode(out).replace("\n", " ")[:240]
+        flag = "" if stopped else " [no-stop]"
+        print0(f"  [{label}] Q: {last_user[:90]!r} -> A: {text!r}{flag}")
     model.train()
 
 
