@@ -1,5 +1,5 @@
 {
-  "_comment": "Example SFT config for an .axim model. Any field here can be overridden on the CLI. Run with: python scripts/sft_train.py --config configs/sft_example.json",
+  "_comment": "Example SFT config for an .axim model. Any field here can be overridden on the CLI. Run with: python scripts/sft_train.py --config configs/sft_example.json. NOTE: the Muon LRs below are ~1/5 of pretraining scale - a base model is already near its chat-data optimum, so pretraining-scale LRs make loss GO UP (catastrophic forgetting). Raise if too slow, lower if loss rises.",
 
   "base_model": "model.axim",
   "train": "data/example_sft.jsonl",
@@ -25,14 +25,14 @@
   "max_grad_norm": 1.0,
 
   "optimizer": "muon",
-  "matrix_lr": 0.02,
-  "embedding_lr": 0.3,
-  "unembedding_lr": 0.004,
-  "scalar_lr": 0.5,
+  "matrix_lr": 0.004,
+  "embedding_lr": 0.06,
+  "unembedding_lr": 0.0008,
+  "scalar_lr": 0.1,
   "weight_decay": 0.0,
 
   "init_lr_frac": 0.5,
-  "warmup_ratio": 0.03,
+  "warmup_ratio": 0.05,
   "warmdown_ratio": 0.2,
   "final_lr_frac": 0.0,
 
