@@ -168,8 +168,13 @@ def _cmd_infer(args):
 
 
 def _cmd_prepare_data(args):
-    # Wired in Task 10.
-    raise SystemExit("prepare-data: wired in Task 10 (axim.sft.data.prepare_dataset)")
+    from .sft.data import prepare_dataset
+    prepare_dataset(
+        repo=args.repo, config=args.config, split=args.split,
+        train_examples=args.train_examples, val_examples=args.val_examples,
+        output_train=args.output_train, output_val=args.output_val,
+        seed=args.seed, system_prompt=args.system_prompt,
+    )
 
 
 def _cmd_sft(args):
