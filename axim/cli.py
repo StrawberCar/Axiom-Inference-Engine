@@ -173,8 +173,11 @@ def _cmd_prepare_data(args):
 
 
 def _cmd_sft(args):
-    # Wired in Task 9.
-    raise SystemExit("sft: wired in Task 9 (axim.sft.train)")
+    import sys as _sys
+    from .sft.train import main as sft_main
+    # axim sft <flags> -> sft_train sees <flags> as its own argv
+    _sys.argv = ["axim-sft"] + _sys.argv[2:]
+    sft_main()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -240,6 +243,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main():
+    import sys as _sys
+    # `axim sft` delegates to sft_train's own argparse (full flag set, --help,
+    # etc.). Short-circuit before the parent parser so `axim sft --help` prints
+    # sft_train's flags, not just the parent subparser's --config.
+    if len(_sys.argv) >= 2 and _sys.argv[1] == "sft":
+        from .sft.train import main as sft_main
+        _sys.argv = ["axim-sft"] + _sys.argv[2:]
+        sft_main()
+        return
     args = build_parser().parse_args()
     args.func(args)
 
