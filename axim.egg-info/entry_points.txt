@@ -1,0 +1,2 @@
+[console_scripts]
+axim = axim.cli:main

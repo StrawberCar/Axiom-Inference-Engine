@@ -1,3 +1,24 @@
+Metadata-Version: 2.4
+Name: axim
+Version: 1.0.0
+Summary: Package and inference engine for .axim model files
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: torch>=2.0
+Requires-Dist: safetensors>=0.4
+Requires-Dist: tiktoken
+Requires-Dist: fastapi
+Requires-Dist: uvicorn
+Requires-Dist: numpy
+Requires-Dist: huggingface_hub
+Requires-Dist: datasets
+Requires-Dist: filelock
+Provides-Extra: sft
+Requires-Dist: accelerate; extra == "sft"
+Requires-Dist: tqdm; extra == "sft"
+Provides-Extra: flash
+Requires-Dist: flash-attn; extra == "flash"
+
 # Axiom-Inference-Engine
 
 Package and inference stuff for **.axim** model files. One binary, everything inside.

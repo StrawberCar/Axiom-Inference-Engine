@@ -1,6 +1,0 @@
-torch>=2.0
-safetensors>=0.4
-tiktoken
-fastapi
-uvicorn
-numpy

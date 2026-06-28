@@ -1,0 +1,16 @@
+torch>=2.0
+safetensors>=0.4
+tiktoken
+fastapi
+uvicorn
+numpy
+huggingface_hub
+datasets
+filelock
+
+[flash]
+flash-attn
+
+[sft]
+accelerate
+tqdm
