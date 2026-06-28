@@ -4,16 +4,18 @@ __pycache__/
 *.class
 *.so
 
-# NanoGPT repo (external)
-nanochat/
+# local / scratch
 .claude
 .remember
-*.ipynb
-.README.md
 
 # model artifacts (large, never commit)
 *.axim
 out/
+
+# packaging artifacts
+*.egg-info/
+dist/
+build/
 
 # standalone explainer page (unrelated to the project, kept local)
 axiom_explainer.html
