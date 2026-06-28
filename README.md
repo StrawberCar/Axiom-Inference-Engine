@@ -87,6 +87,8 @@ Everything goes through the unified `axim` CLI once the package is installed (`p
 
 `axim export` takes either `--tokenizer-pkl PKL` (a local pickle) or `--repo-id REPO` (pull the tokenizer straight from the HF Hub). `axim infer` takes either `--axim PATH` or `--model-dir DIR` as its model source. Run `axim <command> --help` for the full flag set on any subcommand; `axim sft --help` shows every training knob.
 
+`axim infer --chat` renders the chat scaffold and generates through the shared sampling loop (full forward passes — there's no KV cache, same as the API server), so `--repetition-penalty` actually applies in chat mode. It stops on `<|assistant_end|>` (or `--max-tokens` as a fallback).
+
 ### Python API
 
 ```python

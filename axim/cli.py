@@ -177,14 +177,6 @@ def _cmd_prepare_data(args):
     )
 
 
-def _cmd_sft(args):
-    import sys as _sys
-    from .sft.train import main as sft_main
-    # axim sft <flags> -> sft_train sees <flags> as its own argv
-    _sys.argv = ["axim-sft"] + _sys.argv[2:]
-    sft_main()
-
-
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="axim", description="axim — .axim model package + inference engine")
     sub = p.add_subparsers(dest="command", required=True)
@@ -241,8 +233,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=_cmd_prepare_data)
 
     sp = sub.add_parser("sft", help="Fine-tune an .axim model (SFT)")
-    sp.add_argument("--config", required=True)
-    sp.set_defaults(func=_cmd_sft)
+    # `axim sft` is short-circuited in main() before this parser runs, handing
+    # off to sft_train's own argparse (full flag set + --help). This subparser
+    # exists only so `axim --help` lists `sft` with its one-line description.
+    sp.set_defaults(func=None)
 
     return p
 
