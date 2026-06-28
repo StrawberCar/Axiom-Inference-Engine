@@ -62,98 +62,48 @@ That's it. Simple. The weights section can be memory-mapped directly since it's 
 ```bash
 git clone https://github.com/StrawberCar/Axiom-Inference-Engine.git
 cd Axiom-Inference-Engine
-pip install -r requirements.txt
+pip install -e .
 ```
 
-You'll also need nanoChat since that's what runs the models:
-```bash
-git clone https://github.com/karpathy/nanochat.git
-```
+nanochat is vendored under `axim/_nanochat/` (MIT, © Andrej Karpathy) — we maintain our own fork, so no separate clone is needed.
 
 ---
 
 ## Usage
 
-### Inspect an .axim file
+Everything goes through the unified `axim` CLI once the package is installed (`pip install -e .` adds the `axim` console-script). You can also call it as `python -m axim ...`.
 
-```bash
-python scripts/inspect_axim.py model.axim
-```
+### CLI reference
 
-Output:
-```
-AXIM: model.axim
-  version: 1
-  sections: 4
-  size: 5.54 GB
+| Command | What it does | Example |
+|---|---|---|
+| `axim serve` | Serve an .axim model over an OpenAI-compatible API | `axim serve --axim model.axim --device cuda` |
+| `axim inspect` | Inspect an .axim file | `axim inspect model.axim` |
+| `axim export` | Export a model directory to .axim | `axim export --model-dir ./model-safetensors --tokenizer-pkl ./tokenizer.pkl --output model.axim` |
+| `axim download` | Download a base model from the HF Hub to .axim | `axim download --repo Strawbercar/Axiom-V1-Base --output base.axim` |
+| `axim infer` | Run inference on a model | `axim infer --axim model.axim --prompt "hello world" --chat --device cuda` |
+| `axim prepare-data` | Prepare an SFT dataset JSONL from the HF Hub | `axim prepare-data --repo HuggingFaceTB/smol-smoltalk --output-train train.jsonl --output-val val.jsonl` |
+| `axim sft` | Fine-tune an .axim model (SFT) | `axim sft --config configs/sft_example.json --base-model base.axim --train train.jsonl --val val.jsonl --output tuned.axim --device cuda --dtype bf16` |
 
-  [weights] model.safetensors
-    offset: 168, size: 5536.5 MB
-  [config] config.json
-    offset: 5536507584, size: 1.1 KB
-  [tokenizer] tokenizer.pkl
-    offset: 5536508616, size: 412.1 KB
-  [metadata] metadata.json
-    offset: 5536920728, size: 1.4 KB
+`axim export` takes either `--tokenizer-pkl PKL` (a local pickle) or `--repo-id REPO` (pull the tokenizer straight from the HF Hub). `axim infer` takes either `--axim PATH` or `--model-dir DIR` as its model source. Run `axim <command> --help` for the full flag set on any subcommand; `axim sft --help` shows every training knob.
 
-  model: nanochat
-    layers: 24
-    heads: 12
-    hidden: 1536
-    vocab: 32768
-    seq_len: 2048
-    params: 1,384,122,122 (1.38B)
-```
-
-### Load in Python
+### Python API
 
 ```python
-from axim.core import load_axim
+from axim import load_axim, load_model, Tokenizer, sample
 
-data = load_axim("model.axim")
-weights = data["weights"]      # dict[str, torch.Tensor]
-config = data["config"]        # dict
-tokenizer = data["tokenizer"]  # tiktoken Encoding
-metadata = data["metadata"]    # dict
+data = load_axim("model.axim")           # weights/config/tokenizer/metadata
+model, enc, cfg = load_model("model.axim", device="cuda")
+tok = Tokenizer(enc)
+ids = tok.render_chat([{"role": "user", "content": "hi"}])
 ```
 
-Or see `scripts/test_inference.py` for a complete working example of loading + generation.
-
-### Export a model to .axim
-
-```bash
-python scripts/export_to_axim.py \
-    --model-dir ./model-safetensors \
-    --tokenizer-pkl ./tokenizer.pkl \
-    --output model.axim
-```
-
-Or download tokenizer from HuggingFace:
-```bash
-python scripts/export_to_axim.py \
-    --model-dir ./model-safetensors \
-    --repo-id Strawbercar/Axiom-V1-Base \
-    --output model.axim
-```
-
-### Test raw model inference (no server needed)
-
-If you just want to verify a model works without spinning up the API:
-
-```bash
-# from raw safetensors files
-python scripts/test_inference.py --model-dir ./model-safetensors --prompt "hello world" --max-tokens 50
-
-# or from an .axim file
-python scripts/test_inference.py --axim model.axim --prompt "hello world" --max-tokens 50
-```
-
-This loads the model directly and prints generated text.
+`load_axim` returns the raw section dict (weights as `dict[str, torch.Tensor]`, config as a dict, tokenizer as a tiktoken `Encoding`, metadata as a dict). `load_model` builds an actual nanochat GPT ready for inference. `Tokenizer` wraps the encoding with `encode` / `decode` / `render_chat`, and `sample` is the autoregressive sampling loop. See `axim/__init__.py` for the full re-export list.
 
 ### Run the API server
 
 ```bash
-python scripts/api_server.py --axim model.axim --device cuda
+axim serve --axim model.axim --device cuda
 ```
 
 Omit `--port` and it picks a random free one. The server logs every request to its
@@ -213,7 +163,8 @@ Supports streaming too, just add `"stream": true`.
 ### Web UI
 
 Open `webui/index.html` in a browser — it's a self-contained dev console (no build
-step, no server of its own; it just talks to the API).
+step, no server of its own; it just talks to the API). Start the API with
+`axim serve --axim model.axim --device cuda` first, then point the UI at it.
 
 - **Simple mode** — single chat thread. Conversations save to `localStorage`; rename,
   reopen, close, or delete them from the sidebar. Enter sends, Shift+Enter for a
@@ -238,24 +189,24 @@ A100):
 
 ```bash
 # 1. download a base model from the HF Hub
-python scripts/download_model.py --repo Strawbercar/Axiom-V1-Base --output base.axim
+axim download --repo Strawbercar/Axiom-V1-Base --output base.axim
 
 # 2. build train/val JSONL from an HF dataset (ShareGPT-style {role, content} turns)
-python scripts/prepare_sft_data.py --repo HuggingFaceTB/smol-smoltalk \
+axim prepare-data --repo HuggingFaceTB/smol-smoltalk \
     --train-examples 50000 --val-examples 500 \
     --output-train train.jsonl --output-val val.jsonl
 
 # 3. fine-tune — writes a merged .axim you can drop straight into the API server
-python scripts/sft_train.py --config configs/sft_example.json \
+axim sft --config configs/sft_example.json \
     --base-model base.axim --train train.jsonl --val val.jsonl \
     --output tuned.axim --device cuda --dtype bf16
 ```
 
-`sft_train.py` supports LoRA / partial / full fine-tuning, best-fit packing with
+`axim sft` supports LoRA / partial / full fine-tuning, best-fit packing with
 assistant-only loss masking, Muon or AdamW, warmup + warmdown scheduling, in-training
 static + random sampling so you can watch the model learn, and periodic checkpoints.
-See `configs/sft_example.json` for every knob, or open `axim_sft_colab.ipynb` for the
-end-to-end Colab recipe.
+See `configs/sft_example.json` for every knob, or open `notebooks/axim_sft_colab.ipynb`
+for the end-to-end Colab recipe.
 
 ---
 
@@ -264,25 +215,33 @@ end-to-end Colab recipe.
 ```
 Axiom-Inference-Engine/
 ├── axim/
-│   ├── __init__.py          # package init
-│   └── core.py              # read/write/inspect .axim files
-├── scripts/
-│   ├── export_to_axim.py    # export nanoChat models to .axim
-│   ├── inspect_axim.py      # quick .axim inspector
-│   ├── test_inference.py    # direct inference test (no server)
-│   ├── download_model.py    # pull a base model from HF Hub -> .axim
-│   ├── api_server.py        # OpenAI-compatible API server (streaming + verbose logs)
-│   ├── prepare_sft_data.py  # build SFT train/val JSONL from an HF dataset
-│   ├── sft_data.py          # SFT dataset loader / packing helpers
-│   └── sft_train.py         # SFT fine-tuner for .axim models (LoRA / partial / full)
+│   ├── __init__.py          # public API: load_axim, Tokenizer, load_model, sample, ...
+│   ├── core.py              # .axim format: read / write / inspect
+│   ├── model.py             # load_model() / load_from_dir() — the one model-loading dance
+│   ├── tokenizer.py         # Tokenizer: encode / decode / render_chat
+│   ├── generate.py          # sample() — autoregressive sampling loop
+│   ├── serve.py             # OpenAI-compatible API server (FastAPI + SSE)
+│   ├── cli.py               # unified `axim <command>` dispatcher
+│   ├── __main__.py           # `python -m axim`
+│   ├── sft/
+│   │   ├── __init__.py
+│   │   ├── data.py          # SFT dataset loader + packing
+│   │   └── train.py         # SFT fine-tuner (LoRA / partial / full)
+│   └── _nanochat/           # vendored nanochat (MIT, (c) Andrej Karpathy) — our own fork
+│       ├── __init__.py
+│       ├── gpt.py
+│       ├── common.py
+│       ├── optim.py
+│       └── flash_attention.py
 ├── configs/
 │   └── sft_example.json     # example SFT training config
 ├── data/
 │   └── example_sft.jsonl    # tiny example SFT dataset
 ├── webui/
-│   └── index.html           # dev console web UI (chat + raw, streaming, local convs)
-├── axim_sft_colab.ipynb     # one-command-per-cell Colab SFT pipeline
-├── requirements.txt         # python deps
+│   └── index.html           # dev console web UI (self-contained, talks to the API)
+├── notebooks/
+│   └── axim_sft_colab.ipynb # one-command-per-cell Colab SFT pipeline
+├── pyproject.toml           # deps + `axim` console-script
 └── README.md                # you're reading it
 ```
 
@@ -334,4 +293,4 @@ Made with around $100 by Strawbercar, released under the Axiom Research Project.
 - **The tiktoken/rustbpe folks** — for tokenizers that actually work
 - **Anyone who's ever released open source ML tools** — you know who you are
 
----
+nanochat is vendored under `axim/_nanochat/` (MIT, © Andrej Karpathy) — we maintain our own fork.
