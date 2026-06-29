@@ -3,10 +3,28 @@ __pycache__/
 *.py[cod]
 *.class
 *.so
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDEs / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
 
 # local / scratch
 .claude
 .remember
+*.log
+*.tmp
 
 # model artifacts (large, never commit)
 *.axim
@@ -16,6 +34,9 @@ out/
 *.egg-info/
 dist/
 build/
+
+# mkdocs build output
+site/
 
 # standalone explainer page (unrelated to the project, kept local)
 axiom_explainer.html

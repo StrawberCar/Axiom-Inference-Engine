@@ -122,6 +122,7 @@ def _cmd_download(args):
 
 
 def _cmd_infer(args):
+    import time
     import torch
     from .model import load_model, load_from_dir
     from .tokenizer import Tokenizer
@@ -155,16 +156,34 @@ def _cmd_infer(args):
 
     print(f"prompt: {args.prompt!r}")
     print(f"mode: {mode}")
-    print(f"generating up to {args.max_tokens} tokens (temp={args.temperature}, top_k={args.top_k}, rep_penalty={args.repetition_penalty})...\n")
+    print(f"generating up to {args.max_tokens} tokens (temp={args.temperature}, top_k={args.top_k}, rep_penalty={args.repetition_penalty})...")
 
     status = {}
-    toks = list(sample(model, tok, prompt_ids, args.max_tokens, args.temperature,
-                       args.top_k, device, repetition_penalty=args.repetition_penalty,
-                       status=status))
-    out = tok.decode(toks)
-    print("=" * 50)
-    print(args.prompt + out)
-    print("=" * 50)
+    if args.stream:
+        t0 = time.perf_counter()
+        print("=" * 50)
+        print(args.prompt, end="", flush=True)
+        count = 0
+        for token in sample(model, tok, prompt_ids, args.max_tokens, args.temperature,
+                            args.top_k, device, repetition_penalty=args.repetition_penalty,
+                            status=status):
+            count += 1
+            print(tok.decode([token]), end="", flush=True)
+        elapsed = time.perf_counter() - t0
+        tps = count / elapsed if elapsed > 0 else 0.0
+        print()
+        print("=" * 50)
+        print(f"done · {count} tok in {elapsed:.2f}s ({tps:.1f} tok/s)  "
+              f"finish={status.get('reason','stop')} ({status.get('cause','')})")
+    else:
+        print()
+        toks = list(sample(model, tok, prompt_ids, args.max_tokens, args.temperature,
+                           args.top_k, device, repetition_penalty=args.repetition_penalty,
+                           status=status))
+        out = tok.decode(toks)
+        print("=" * 50)
+        print(args.prompt + out)
+        print("=" * 50)
 
 
 def _cmd_prepare_data(args):
@@ -218,6 +237,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--device", default="cpu")
     sp.add_argument("--chat", action="store_true")
     sp.add_argument("--system-prompt", default=None)
+    sp.add_argument("--stream", action=argparse.BooleanOptionalAction, default=True,
+                    help="stream generated tokens to the terminal as they are produced (default: true)")
     sp.set_defaults(func=_cmd_infer)
 
     sp = sub.add_parser("prepare-data", help="Prepare an SFT dataset JSONL from the HF Hub")
