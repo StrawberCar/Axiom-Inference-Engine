@@ -1,0 +1,18 @@
+/* Axiom Inference Engine — MkDocs Material overrides */
+
+/* Slightly smaller code font inside tables so wide CLI/option tables fit. */
+.md-typeset table code {
+    font-size: 0.78rem;
+}
+
+/* Subtle hero gradient behind the site header topic (landing page). */
+.md-header__topic {
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.08));
+    border-radius: 0.25rem;
+    padding-inline: 0.5rem;
+}
+
+/* Keep the hero gradient subtle in dark mode. */
+[data-md-color-scheme="slate"] .md-header__topic {
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.12));
+}
