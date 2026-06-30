@@ -294,5 +294,6 @@ Made with around $100 by Strawbercar, released under the Axiom Research Project.
 - **The llama.cpp team** — for proving that small, fast inference is possible
 - **The tiktoken/rustbpe folks** — for tokenizers that actually work
 - **Anyone who's ever released open source ML tools** — you know who you are
+- **idfk**
 
-nanochat is vendored under `axim/_nanochat/` (MIT, © Andrej Karpathy) — we maintain our own fork.
+nanochat is vendored under `axim/_nanochat/` (MIT, © Andrej Karpathy) - we maintain our own fork.
